@@ -15,6 +15,8 @@ from .detect_version import detect_boost_version
 have_python_2 = (sys.version_info[0] == 2)
 have_python_3 = (sys.version_info[0] == 3)
 
+gdb_version = tuple(map(int, gdb.VERSION.split('.')))
+
 #
 # Workarounds
 #
@@ -518,7 +520,10 @@ class GDB_Value_Wrapper(gdb.Value):
         # In Python 2 we add a __dict__ attribute explicitly.
         if have_python_2:
             self.__dict__ = {}
-        gdb.Value.__init__(value)
+        if gdb_version[0] >= 12:
+            gdb.Value.__init__(self, val=value)
+        else:
+            gdb.Value.__init__(value)
         self.qualifiers = get_type_qualifiers(value.type)
         self.basic_type = get_basic_type(value.type)
         self.type_name = str(self.basic_type)
