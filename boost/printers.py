@@ -447,7 +447,7 @@ class BoostDynamicBitset:
         data = [int(value) for index_str, value in data_vis.children()]
 
         for block_idx, block in enumerate(data):
-            bits_in_block = num_bits % block_size if block_idx == len(data) - 1 else block_size
+            bits_in_block = num_bits % block_size if (block_idx == num_bits // block_size) else block_size
             for bit_idx in range(bits_in_block):
                 bit_value = 1 if block & (1 << bit_idx) else 0
                 yield '[{}]'.format(block_idx * block_size + bit_idx), bit_value
