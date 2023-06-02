@@ -433,7 +433,13 @@ class BoostDynamicBitset:
 
     def children(self):
         num_bits = int(self.value['m_num_bits'])
-        block_size = int(self.value['bits_per_block'])
+        try:
+            block_size = int(self.value['bits_per_block'])
+        except gdb.error:
+            # bits_per_block can be optimized out by the compiler!
+            # Try to guess it from the Block type
+            block_width_type = get_basic_type(self.value.type.template_argument(0))
+            block_size = block_width_type.sizeof * 8
 
         data_vis = gdb.default_visualizer(self.value['m_bits'])
         if data_vis is None:
