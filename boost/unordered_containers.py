@@ -39,6 +39,17 @@ def inc_and_cast_ptr(addr, cast_type=None, offset=1):
         return void_ptr.cast(addr.type)
 
 
+def get_node_value(node_ptr, value_type):
+    """
+    Get value stored in node.
+
+    The value is offset 1 byte from the node pointer
+    """
+    value_address = int(node_ptr) + 8
+    value_ptr = gdb.Value(value_address).cast(value_type.pointer())
+    return value_ptr.dereference()
+
+
 def reset_first_bits(n, N):
     """Reset first N bits in a number"""
     return int('1' * (N - n) + '0' * n, 2)
@@ -130,10 +141,9 @@ class BoostUnorderedCommon1800(BoostUnorderedCommon):
         value_type = get_inner_type(self.val.type, 'value_type')
 
         while True:
-            node = p
-            while node := node['next']:
-                yield inc_and_cast_ptr(node,
-                                       value_type.pointer()).dereference()
+            node_ptr = p
+            while node_ptr := node_ptr['next']:
+                yield get_node_value(node_ptr, value_type)
 
             offset = int(p - pbg['buckets'])
             testing_mask = reset_first_bits(offset + 1, N)
@@ -293,5 +303,4 @@ class BoostUnorderedIterator1800:
             return []
 
         value_type = get_inner_type(self.val.type, 'value_type')
-        value_ptr = inc_and_cast_ptr(p, value_type.pointer())
-        return [('value', value_ptr.dereference())]
+        return [('value', get_node_value(p, value_type))]
