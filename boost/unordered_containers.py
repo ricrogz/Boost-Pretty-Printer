@@ -27,11 +27,45 @@
 from .utils import *
 import itertools
 
+void_ptr_t = gdb.lookup_type('void').pointer()
+
+
+def inc_and_cast_ptr(addr, cast_type=None, offset=1):
+    """Increment address by given offset and cast to given type"""
+    void_ptr = addr.cast(void_ptr_t) + 8 * offset
+    if cast_type:
+        return void_ptr.cast(cast_type)
+    else:
+        return void_ptr.cast(addr.type)
+
+
+def reset_first_bits(n, N):
+    """Reset first N bits in a number"""
+    return int('1' * (N - n) + '0' * n, 2)
+
+
+def ctz(x, N):
+    """Count trailing zeroes"""
+    x = int(x)
+    if x == 0:
+        return N
+    return (x & -x).bit_length() - 1
+
 
 class BoostUnorderedCommon:
     """Common base for boost unordered containers"""
+
     def __init__(self, val):
         self.val = val
+
+    def size(self):
+        table = self.val['table_']
+        buckets = table['buckets_']
+        return table['size_'] if buckets else 0
+
+
+class BoostUnorderedCommon1580(BoostUnorderedCommon):
+    """Common base for boost unordered containers after 1.58.0"""
 
     @staticmethod
     def nodes(start_node):
@@ -56,7 +90,8 @@ class BoostUnorderedCommon:
         # In case of unusual allocators (such as boost::interprocess::allocator) there is an extra node in the beginning
         bucket_allocator_type = table['allocators_'].type.template_argument(0)
         bucket_type = bucket_allocator_type.template_argument(0)
-        extra_node = get_basic_type(bucket_type).name != 'boost::unordered::detail::ptr_bucket'
+        extra_node = get_basic_type(
+            bucket_type).name != 'boost::unordered::detail::ptr_bucket'
 
         node_allocator_type = table['allocators_'].type.template_argument(1)
         node_type = node_allocator_type.template_argument(0)
@@ -64,34 +99,70 @@ class BoostUnorderedCommon:
         bucket_count = table['bucket_count_']
         start_node = buckets[bucket_count]
 
-        for node in itertools.islice(self.nodes(start_node), 1 if extra_node else 0, None):
-            node_data = reinterpret_cast(node, node_type)['value_base_']['data_']
+        for node in itertools.islice(self.nodes(start_node),
+                                     1 if extra_node else 0, None):
+            node_data = reinterpret_cast(node,
+                                         node_type)['value_base_']['data_']
             stored_value = reinterpret_cast(node_data, value_type)
             yield stored_value
 
-    def size(self):
+
+class BoostUnorderedCommon1800(BoostUnorderedCommon):
+    """Common base for boost unordered containers after 1.80.0"""
+
+    def stored_items(self):
+        """Generator iterating over all items stored in container"""
+
         table = self.val['table_']
-        buckets = table['buckets_']
-        return table['size_'] if buckets else 0
+        if table['size_'] == 0:
+            return
+
+        itb = table['buckets_']
+        if not itb:
+            return
+
+        p = itb['buckets']
+        pbg = itb['groups']
+
+        last_group = pbg['next']
+        N = int(pbg['N'])
+
+        value_type = get_inner_type(self.val.type, 'value_type')
+
+        while True:
+            node = p
+            while node := node['next']:
+                yield inc_and_cast_ptr(node,
+                                       value_type.pointer()).dereference()
+
+            offset = int(p - pbg['buckets'])
+            testing_mask = reset_first_bits(offset + 1, N)
+            n = ctz(pbg['bitmask'] & testing_mask, N)
+
+            if n < N:
+                p = pbg['buckets'] + n
+            else:
+                if pbg == last_group:
+                    break
+                pbg = pbg['prev']
+                p = pbg['buckets'] + ctz(pbg['bitmask'], N)
 
 
-@add_printer
-class BoostUnorderedMapPrinter(BoostUnorderedCommon):
-    """Pretty Printer for boost::unordered_map and boost::unordered_multimap (Boost.Unordered)"""
+class BoostUnorderedMapPrinterCommon:
+    """Common base for boost unordered map containers"""
     printer_name = 'boost::unordered_map'
-    min_supported_version = (1, 58, 0)
-    max_supported_version = last_supported_boost_version
-    template_name = ['boost::unordered::unordered_map', 'boost::unordered::unordered_multimap']
-
-    def __init__(self, val):
-        BoostUnorderedCommon.__init__(self, val)
+    template_name = [
+        'boost::unordered::unordered_map',
+        'boost::unordered::unordered_multimap'
+    ]
 
     def to_string(self):
         template_name = self.val.template_name
         container_type = self.val.type.strip_typedefs()
         key_type = container_type.template_argument(0)
         value_type = container_type.template_argument(1)
-        return '{}<{}, {}> size = {}'.format(template_name, key_type, value_type, self.size())
+        return '{}<{}, {}> size = {}'.format(template_name, key_type,
+                                             value_type, self.size())
 
     def children(self):
         for item_number, item in enumerate(self.stored_items()):
@@ -103,21 +174,41 @@ class BoostUnorderedMapPrinter(BoostUnorderedCommon):
 
 
 @add_printer
-class BoostUnorderedSetPrinter(BoostUnorderedCommon):
+class BoostUnorderedMapPrinter1580(BoostUnorderedCommon1580,
+                                   BoostUnorderedMapPrinterCommon):
     """Pretty Printer for boost::unordered_map and boost::unordered_multimap (Boost.Unordered)"""
-    printer_name = 'boost::unordered_set'
     min_supported_version = (1, 58, 0)
-    max_supported_version = last_supported_boost_version
-    template_name = ['boost::unordered::unordered_set', 'boost::unordered::unordered_multiset']
+    max_supported_version = (1, 79, 0)
 
     def __init__(self, val):
-        BoostUnorderedCommon.__init__(self, val)
+        BoostUnorderedCommon1580.__init__(self, val)
+
+
+@add_printer
+class BoostUnorderedMapPrinter1800(BoostUnorderedCommon1800,
+                                   BoostUnorderedMapPrinterCommon):
+    """Pretty Printer for boost::unordered_map and boost::unordered_multimap (Boost.Unordered)"""
+    min_supported_version = (1, 80, 0)
+    max_supported_version = last_supported_boost_version
+
+    def __init__(self, val):
+        BoostUnorderedCommon1800.__init__(self, val)
+
+
+class BoostUnorderedSetPrinterCommon:
+    """Common base for boost unordered set containers"""
+    printer_name = 'boost::unordered_set'
+    template_name = [
+        'boost::unordered::unordered_set',
+        'boost::unordered::unordered_multiset'
+    ]
 
     def to_string(self):
         template_name = self.val.template_name
         container_type = self.val.type.strip_typedefs()
         value_type = container_type.template_argument(0)
-        return '{}<{}> size = {}'.format(template_name, value_type, self.size())
+        return '{}<{}> size = {}'.format(template_name, value_type,
+                                         self.size())
 
     def children(self):
         for item_number, item in enumerate(self.stored_items()):
@@ -128,12 +219,37 @@ class BoostUnorderedSetPrinter(BoostUnorderedCommon):
 
 
 @add_printer
-class BoostUnorderedIterator:
+class BoostUnorderedSetPrinter1580(BoostUnorderedCommon1580,
+                                   BoostUnorderedSetPrinterCommon):
+    """Pretty Printer for boost::unordered_map and boost::unordered_multimap (Boost.Unordered)"""
+    min_supported_version = (1, 58, 0)
+    max_supported_version = (1, 79, 0)
+
+    def __init__(self, val):
+        BoostUnorderedCommon1580.__init__(self, val)
+
+
+@add_printer
+class BoostUnorderedSetPrinter1800(BoostUnorderedCommon1800,
+                                   BoostUnorderedSetPrinterCommon):
+    """Pretty Printer for boost::unordered_map and boost::unordered_multimap (Boost.Unordered)"""
+    min_supported_version = (1, 80, 0)
+    max_supported_version = last_supported_boost_version
+
+    def __init__(self, val):
+        BoostUnorderedCommon1800.__init__(self, val)
+
+
+@add_printer
+class BoostUnorderedIterator1580:
     """Pretty Printer for unordered container iterators (Boost.Unordered)"""
     printer_name = 'boost::unordered::iterator'
     min_supported_version = (1, 58, 0)
-    max_supported_version = last_supported_boost_version
-    template_name = ['boost::unordered::iterator_detail::iterator', 'boost::unordered::iterator_detail::c_iterator']
+    max_supported_version = (1, 79, 0)
+    template_name = [
+        'boost::unordered::iterator_detail::iterator',
+        'boost::unordered::iterator_detail::c_iterator'
+    ]
 
     def __init__(self, value):
         self.val = value
@@ -151,3 +267,31 @@ class BoostUnorderedIterator:
             stored_value = reinterpret_cast(node_data, value_type)
             return [('value', stored_value)]
         return []
+
+
+@add_printer
+class BoostUnorderedIterator1800:
+    """Pretty Printer for unordered container iterators (Boost.Unordered)"""
+    printer_name = 'boost::unordered::iterator'
+    min_supported_version = (1, 80, 0)
+    max_supported_version = last_supported_boost_version
+    #template_name = ['boost::unordered::iterator_detail::iterator', 'boost::unordered::iterator_detail::c_iterator']
+    template_name = [
+        'boost::unordered::detail::iterator_detail::iterator',
+        'boost::unordered::detail::iterator_detail::c_iterator'
+    ]
+
+    def __init__(self, value):
+        self.val = value
+
+    def to_string(self):
+        return None if int(self.val['p']) else 'uninitialized'
+
+    def children(self):
+        p = self.val['p']
+        if not int(p):
+            return []
+
+        value_type = get_inner_type(self.val.type, 'value_type')
+        value_ptr = inc_and_cast_ptr(p, value_type.pointer())
+        return [('value', value_ptr.dereference())]

@@ -163,7 +163,7 @@ def to_eval(val, var_name=None):
     """
     Return string that, when evaluated, returns the given gdb.Value.
 
-    If <val> has an adddress, the string returned will be of the form:
+    If <val> has an address, the string returned will be of the form:
     "(*(<val.type> *)(<val.address>))".
 
     If <val> has no address, it is first saved as variable <var_name>,
@@ -783,4 +783,4 @@ multi_index_selector = dict()
 options = {'hide_intrusive_hooks': True}
 
 # Latest boost currently supported by printers
-last_supported_boost_version = (1, 79, 0)
+last_supported_boost_version = (1, 82, 0)
