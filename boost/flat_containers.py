@@ -60,7 +60,8 @@ class FlatMapBase:
 
     def to_string(self):
         return 'boost::container::flat_map<{}, {}> size={} capacity={}'.format(
-            self.key_type, self.value_type, self.get_size(), self.get_capacity())
+            self.key_type, self.value_type, self.get_size(),
+            self.get_capacity())
 
     def children(self):
         for idx in xrange(self.get_size()):
@@ -73,28 +74,37 @@ class FlatMapBase:
 
 
 class FlatTree152:
+
     def get_pointer(self):
-        return self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"]["m_start"]
+        return self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"][
+            "m_start"]
 
     def get_size(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"]["m_size"])
+        return int(
+            self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"]["m_size"])
 
     def get_capacity(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"]["m_capacity"])
+        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["members_"]
+                   ["m_capacity"])
 
 
 class FlatTree154:
+
     def get_pointer(self):
-        return self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"]["m_start"]
+        return self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"][
+            "m_start"]
 
     def get_size(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"]["m_size"])
+        return int(
+            self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"]["m_size"])
 
     def get_capacity(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"]["m_capacity"])
+        return int(self.val["m_flat_tree"]["m_data"]["m_vect"]["m_holder"]
+                   ["m_capacity"])
 
 
 class FlatTree158:
+
     def get_pointer(self):
         return self.val["m_data"]["m_vect"]["m_holder"]["m_start"]
 
@@ -177,13 +187,16 @@ class FlatMap165Printer(FlatMapBase):
         FlatMapBase.__init__(self, value)
 
     def get_pointer(self):
-        return self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"]["m_start"]
+        return self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"][
+            "m_start"]
 
     def get_size(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"]["m_size"])
+        return int(
+            self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"]["m_size"])
 
     def get_capacity(self):
-        return int(self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"]["m_capacity"])
+        return int(self.val["m_flat_tree"]["m_data"]["m_seq"]["m_holder"]
+                   ["m_capacity"])
 
 
 # Iterator used for flat_set/flat_map
@@ -200,7 +213,8 @@ class BoostContainerVectorIterator:
         # 1.55-1.66
         'boost::container::container_detail::vec_iterator',
         # 1.67+
-        'boost::container::vec_iterator']
+        'boost::container::vec_iterator'
+    ]
 
     def __init__(self, value):
         self.val = value

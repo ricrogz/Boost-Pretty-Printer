@@ -1,12 +1,16 @@
 # encoding: utf-8
-from __future__ import print_function, absolute_import, division
-import gdb
+from __future__ import absolute_import, division, print_function
+
 import re
+
+import gdb
+
 from .utils import *
 
 #
 # Boost Variant
 #
+
 
 def strip_qualifiers(typename):
     """Remove const/volatile qualifiers, references, and pointers of a type"""
@@ -15,7 +19,8 @@ def strip_qualifiers(typename):
     try:
         while True:
             typename = typename.rstrip()
-            qual = next(q for q in ['&', '*', 'const', 'volatile'] if typename.endswith(q))
+            qual = next(q for q in ['&', '*', 'const', 'volatile']
+                        if typename.endswith(q))
             typename = typename[:-len(qual)]
             qps.append(qual)
     except StopIteration:
@@ -24,7 +29,8 @@ def strip_qualifiers(typename):
     try:
         while True:
             typename = typename.lstrip()
-            qual = next(q for q in ['const', 'volatile'] if typename.startswith(q))
+            qual = next(q for q in ['const', 'volatile']
+                        if typename.startswith(q))
             typename = typename[len(qual):]
             qps.append(qual)
     except StopIteration:
@@ -84,20 +90,22 @@ class BoostVariant:
 
     def children(self):
         stored_type, stored_type_name = self.get_variant_type()
-        stored_value = reinterpret_cast(self.value['storage_']['data_']['buf'], stored_type)
+        stored_value = reinterpret_cast(self.value['storage_']['data_']['buf'],
+                                        stored_type)
         yield stored_type_name, stored_value
 
     def get_variant_type(self):
         """Get a gdb.Type of a template argument"""
         type_index = intptr(self.value['which_'])
         assert type_index >= 0, 'Heap backup is not supported'
-        
+
         # This is a workaround for a GDB issue
-        # https://sourceware.org/bugzilla/show_bug.cgi?id=17311. 
+        # https://sourceware.org/bugzilla/show_bug.cgi?id=17311.
         # gdb.Type.template_argument() method does not work unless variadic templates
         # are disabled using BOOST_VARIANT_DO_NOT_USE_VARIADIC_TEMPLATES.
         m = BoostVariant.regex.search(self.value.type_name)
         type_names = list(split_parameter_pack(m.group(1)))
         stored_type_name = type_names[type_index]
         base_type_name, qualifiers = strip_qualifiers(stored_type_name)
-        return apply_qualifiers(lookup_type(base_type_name), qualifiers), stored_type_name
+        return apply_qualifiers(lookup_type(base_type_name),
+                                qualifiers), stored_type_name

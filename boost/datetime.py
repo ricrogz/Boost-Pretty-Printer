@@ -1,8 +1,10 @@
-from __future__ import print_function, absolute_import, division
+from __future__ import absolute_import, division, print_function
 
 import datetime
 import math
+
 from .utils import *
+
 
 @add_printer
 class BoostPosixTimeDuration:
@@ -31,10 +33,10 @@ class BoostPosixTimeDuration:
                 neg = True
                 ticks *= -1
             ticks_per_second = 1000000
-            hours = ticks // (3600*ticks_per_second)
+            hours = ticks // (3600 * ticks_per_second)
             if hours > 0:
                 rt += str(hours) + 'h '
-            min = (ticks // (60*ticks_per_second)) % 60
+            min = (ticks // (60 * ticks_per_second)) % 60
             if min > 0:
                 rt += str(min) + 'm '
             sec = (ticks // ticks_per_second) % 60
@@ -48,6 +50,7 @@ class BoostPosixTimeDuration:
             if neg:
                 rt = "-" + rt
         return '(%s) %s' % (self.typename, rt.strip())
+
 
 @add_printer
 class BoostGregorianDate:
@@ -110,5 +113,6 @@ class BoostPosixTimePTime:
             return '(%s) negative infinity' % self.typename
         # Subtract the unix epoch from the timestamp and convert the resulting timestamp into something human readable
         unix_epoch_time = (n - 210866803200000000) / 1000000.0
-        time_string = datetime.datetime.utcfromtimestamp(unix_epoch_time).isoformat(' ')
+        time_string = datetime.datetime.utcfromtimestamp(
+            unix_epoch_time).isoformat(' ')
         return '(%s) %sZ' % (self.typename, time_string)

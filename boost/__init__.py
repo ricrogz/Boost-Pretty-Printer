@@ -33,14 +33,11 @@
 # Inspired _but not copied_ from libstdc++'s pretty printers
 #
 
-from __future__ import print_function, unicode_literals, absolute_import, division
-from . import printers
-from . import flat_containers
-from . import unordered_containers
-from . import intrusive_1_55
-from . import intrusive_1_40
-from . import multi_index_1_42
-from .utils import register_printers, add_trivial_printer, options, last_supported_boost_version
-from . import datetime
-from . import variant
-from . import wave_1_71
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+from . import (datetime, flat_containers, intrusive_1_40, intrusive_1_55,
+               multi_index_1_42, printers, unordered_containers, variant,
+               wave_1_71)
+from .utils import (add_trivial_printer, last_supported_boost_version, options,
+                    register_printers)

@@ -6,6 +6,7 @@
 
 from .utils import *
 
+
 def get_named_template_argument(gdb_type, arg_name):
     n = 0
     while True:
@@ -17,30 +18,39 @@ def get_named_template_argument(gdb_type, arg_name):
         except RuntimeError:
             return None
 
+
 def intrusive_container_has_size_member(intrusive_container_type):
-    constant_size_arg = get_named_template_argument(intrusive_container_type, "boost::intrusive::constant_time_size")
+    constant_size_arg = get_named_template_argument(
+        intrusive_container_type, "boost::intrusive::constant_time_size")
     if not constant_size_arg:
         return True
     if str(constant_size_arg.template_argument(0)) == 'false':
         return False
     return True
 
+
 def intrusive_iterator_to_string(iterator_value):
     opttype = iterator_value.type.template_argument(0).template_argument(0)
 
-    base_hook_traits = get_named_template_argument(opttype, "boost::intrusive::detail::base_hook_traits")
+    base_hook_traits = get_named_template_argument(
+        opttype, "boost::intrusive::detail::base_hook_traits")
     if base_hook_traits:
         value_type = base_hook_traits.template_argument(0)
-        return iterator_value["members_"]["nodeptr_"].cast(value_type.pointer()).dereference()
+        return iterator_value["members_"]["nodeptr_"].cast(
+            value_type.pointer()).dereference()
 
-    member_hook_traits = get_named_template_argument(opttype, "boost::intrusive::detail::member_hook_traits")
+    member_hook_traits = get_named_template_argument(
+        opttype, "boost::intrusive::detail::member_hook_traits")
     if member_hook_traits:
         value_type = member_hook_traits.template_argument(0)
-        member_offset = member_hook_traits.template_argument(2).cast(lookup_type("size_t"))
-        current_element_address = iterator_value["members_"]["nodeptr_"].cast(lookup_type("size_t")) - member_offset
+        member_offset = member_hook_traits.template_argument(2).cast(
+            lookup_type("size_t"))
+        current_element_address = iterator_value["members_"]["nodeptr_"].cast(
+            lookup_type("size_t")) - member_offset
         return current_element_address.cast(value_type.pointer()).dereference()
 
     return iterator_value["members_"]["nodeptr_"]
+
 
 @add_printer
 class BoostIntrusiveSet:
@@ -51,13 +61,18 @@ class BoostIntrusiveSet:
     template_name = 'boost::intrusive::set'
 
     class Iterator:
-        def __init__(self, rb_tree_header, element_pointer_type, member_offset=0):
+
+        def __init__(self,
+                     rb_tree_header,
+                     element_pointer_type,
+                     member_offset=0):
             self.header = rb_tree_header
             self.member_offset = member_offset
             if member_offset == 0:
                 self.node_type = element_pointer_type
             else:
-                self.node_type = lookup_type("boost::intrusive::rbtree_node<void*>").pointer();
+                self.node_type = lookup_type(
+                    "boost::intrusive::rbtree_node<void*>").pointer()
                 self.element_pointer_type = element_pointer_type
 
             if rb_tree_header['parent_']:
@@ -74,7 +89,8 @@ class BoostIntrusiveSet:
             if self.member_offset == 0:
                 return self.node
             else:
-                current_element_address = self.node.cast(lookup_type("size_t")) - self.member_offset
+                current_element_address = self.node.cast(
+                    lookup_type("size_t")) - self.member_offset
                 return current_element_address.cast(self.element_pointer_type)
 
         def __next__(self):
@@ -112,10 +128,12 @@ class BoostIntrusiveSet:
         self.element_type = self.val.type.strip_typedefs().template_argument(0)
 
     def get_header(self):
-        return self.val["tree_"]["data_"]["node_plus_pred_"]["header_plus_size_"]["header_"]
+        return self.val["tree_"]["data_"]["node_plus_pred_"][
+            "header_plus_size_"]["header_"]
 
     def get_size(self):
-        return self.val["tree_"]["data_"]["node_plus_pred_"]["header_plus_size_"]["size_"]
+        return self.val["tree_"]["data_"]["node_plus_pred_"][
+            "header_plus_size_"]["size_"]
 
     def has_elements(self):
         header = self.get_header()
@@ -125,20 +143,24 @@ class BoostIntrusiveSet:
         else:
             return False
 
-    def to_string (self):
+    def to_string(self):
         if (intrusive_container_has_size_member(self.val.type)):
-            return "boost::intrusive::set<%s> with %d elements" % (self.element_type, self.get_size())
+            return "boost::intrusive::set<%s> with %d elements" % (
+                self.element_type, self.get_size())
         elif (self.has_elements()):
             return "non-empty boost::intrusive::set<%s>" % self.element_type
         else:
             return "empty boost::intrusive::set<%s>" % self.element_type
 
-    def children (self):
+    def children(self):
         element_pointer_type = self.element_type.pointer()
-        member_hook = get_named_template_argument(self.val.type, "boost::intrusive::member_hook")
+        member_hook = get_named_template_argument(
+            self.val.type, "boost::intrusive::member_hook")
         if member_hook:
-            member_offset = member_hook.template_argument(2).cast(lookup_type("size_t"))
-            return self.Iterator(self.get_header(), element_pointer_type, member_offset)
+            member_offset = member_hook.template_argument(2).cast(
+                lookup_type("size_t"))
+            return self.Iterator(self.get_header(), element_pointer_type,
+                                 member_offset)
         else:
             return self.Iterator(self.get_header(), element_pointer_type)
 
@@ -163,6 +185,7 @@ class BoostIntrusiveTreeIterator:
 # boost::intrusive::list                         #
 ##################################################
 
+
 @add_printer
 class BoostIntrusiveList:
     "Pretty Printer for boost::intrusive::list (Boost.Intrusive)"
@@ -172,6 +195,7 @@ class BoostIntrusiveList:
     template_name = 'boost::intrusive::list'
 
     class Iterator:
+
         def __init__(self, list_header, element_pointer_type, member_offset=0):
             self.header = list_header
 
@@ -179,7 +203,8 @@ class BoostIntrusiveList:
             if member_offset == 0:
                 self.node_type = element_pointer_type
             else:
-                self.node_type = lookup_type("boost::intrusive::list_node<void*>").pointer();
+                self.node_type = lookup_type(
+                    "boost::intrusive::list_node<void*>").pointer()
                 self.element_pointer_type = element_pointer_type
 
             next_node = list_header['next_']
@@ -197,7 +222,8 @@ class BoostIntrusiveList:
             if self.member_offset == 0:
                 return self.node
             else:
-                current_element_address = self.node.cast(lookup_type("size_t")) - self.member_offset
+                current_element_address = self.node.cast(
+                    lookup_type("size_t")) - self.member_offset
                 return current_element_address.cast(self.element_pointer_type)
 
         def __next__(self):
@@ -239,7 +265,8 @@ class BoostIntrusiveList:
 
     def to_string(self):
         if (intrusive_container_has_size_member(self.val.type)):
-            return "boost::intrusive::list<%s> with %d elements" % (self.element_type, self.get_size())
+            return "boost::intrusive::list<%s> with %d elements" % (
+                self.element_type, self.get_size())
         elif (self.has_elements()):
             return "non-empty boost::intrusive::list<%s>" % self.element_type
         else:
@@ -247,12 +274,16 @@ class BoostIntrusiveList:
 
     def children(self):
         element_pointer_type = self.element_type.pointer()
-        member_hook = get_named_template_argument(self.val.type, "boost::intrusive::member_hook")
+        member_hook = get_named_template_argument(
+            self.val.type, "boost::intrusive::member_hook")
         if member_hook:
-            member_offset = member_hook.template_argument(2).cast(lookup_type("size_t"))
-            return self.Iterator(self.get_header(), element_pointer_type, member_offset)
+            member_offset = member_hook.template_argument(2).cast(
+                lookup_type("size_t"))
+            return self.Iterator(self.get_header(), element_pointer_type,
+                                 member_offset)
         else:
             return self.Iterator(self.get_header(), element_pointer_type)
+
 
 @add_printer
 class BoostIntrusiveListIterator:

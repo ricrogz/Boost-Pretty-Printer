@@ -8,7 +8,9 @@
 
 import itertools
 import sys
+
 from .utils import *
+
 
 @add_printer
 class BoostWaveFlexString:
@@ -48,8 +50,8 @@ class BoostWaveFilePosition:
         self.val = val
 
     def to_string(self):
-        return "({} {}:{})".format(
-            self.val["file"], self.val["line"], self.val["column"])
+        return "({} {}:{})".format(self.val["file"], self.val["line"],
+                                   self.val["column"])
 
 
 @add_printer
@@ -64,12 +66,15 @@ class BoostWaveToken:
         self.val = val
 
     def to_string(self):
-        return "{} : {} {}".format(
-            self.val["data"]["id"], self.val["data"]["value"], self.val["data"]["pos"])
+        return "{} : {} {}".format(self.val["data"]["id"],
+                                   self.val["data"]["value"],
+                                   self.val["data"]["pos"])
+
 
 #
 # internal types, unlikely to be directly printed, that support flex_string
 #
+
 
 @add_printer
 class BoostWaveAllocatorStringStorage:
@@ -83,7 +88,7 @@ class BoostWaveAllocatorStringStorage:
 
     def display_hint(self):
         return 'array'
-        
+
     def children(self):
         data = self.val['pData_'].dereference()
 
@@ -110,7 +115,7 @@ class BoostWaveCowString:
     def children(self):
         storage_type = self.val.type.template_argument(0)
         storage = reinterpret_cast(self.val['buf_'], storage_type)
-        printer = gdb.default_visualizer(storage)       
+        printer = gdb.default_visualizer(storage)
         if printer is None:
             # Unknown underlying storage
             return
@@ -118,13 +123,14 @@ class BoostWaveCowString:
         for idx, (_, ch) in enumerate(chars):
             yield '[{}]'.format(idx), ch
 
+
 #
 # utility functions
 #
+
 
 def cast_array_to_pointer(val):
     """Cast array to pointer to the first element"""
     assert val.type.code == gdb.TYPE_CODE_ARRAY
     element_type = val.type.target()
     return val.address.cast(element_type.pointer())
-

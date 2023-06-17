@@ -1,13 +1,15 @@
 # coding: utf-8
 
-from __future__ import print_function, unicode_literals, absolute_import, division
-import subprocess
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import os
-from io import open
-import stat
-import tempfile
 import shlex
 import shutil
+import stat
+import subprocess
+import tempfile
+from io import open
 
 cpp_template = u"""
 #include <boost/version.hpp>

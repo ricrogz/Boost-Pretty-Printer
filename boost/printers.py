@@ -34,9 +34,10 @@
 #
 
 from __future__ import print_function
-import re
-from .utils import *
 
+import re
+
+from .utils import *
 
 #
 # Individual Printers follow.
@@ -55,6 +56,7 @@ from .utils import *
 # - '__init__' : Its only argument is a GDB_Value_Wrapper.
 #
 
+
 @add_printer
 class BoostIteratorRange:
     "Pretty Printer for boost::iterator_range (Boost.Range)"
@@ -64,6 +66,7 @@ class BoostIteratorRange:
     template_name = 'boost::iterator_range'
 
     class _iterator:
+
         def __init__(self, begin, end):
             self.item = begin
             self.end = end
@@ -114,7 +117,8 @@ class BoostOptional:
     def children(self):
         initialized = self.value['m_initialized']
         if initialized:
-            stored_type = get_basic_type(self.value.basic_type.template_argument(0))
+            stored_type = get_basic_type(
+                self.value.basic_type.template_argument(0))
             m_storage = self.value['m_storage']
             stored_value = m_storage \
                 if get_basic_type(m_storage.type) == stored_type \
@@ -160,9 +164,9 @@ class BoostTribool:
     def to_string(self):
         state = self.value['value']
         s = 'indeterminate'
-        if(state == 0):
+        if (state == 0):
             s = 'false'
-        elif(state == 1):
+        elif (state == 1):
             s = 'true'
         return '(%s) %s' % (self.typename, s)
 
@@ -179,7 +183,8 @@ class BoostScopedPtr:
         self.value = value
 
     def to_string(self):
-        return 'uninitialized' if self.value['px'] == 0 else str(self.value['px'])
+        return 'uninitialized' if self.value['px'] == 0 else str(
+            self.value['px'])
 
     def children(self):
         if self.value['px'] != 0:
@@ -199,7 +204,8 @@ class BoostScopedArray:
 
     def to_string(self):
         # Array elements can not be displayed because size of the array is not known
-        return 'uninitialized' if self.value['px'] == 0 else 'array start {}'.format(self.value['px'])
+        return 'uninitialized' if self.value[
+            'px'] == 0 else 'array start {}'.format(self.value['px'])
 
 
 def read_atomic_counter(counter):
@@ -259,7 +265,8 @@ class BoostSharedArray:
         countobj = self.value['pn']['pi_'].dereference()
         refcount = read_atomic_counter(countobj['use_count_'])
         weakcount = read_atomic_counter(countobj['weak_count_'])
-        return 'count {}, weak count {}, array start {}'.format(refcount, weakcount, self.value['px'])
+        return 'count {}, weak count {}, array start {}'.format(
+            refcount, weakcount, self.value['px'])
 
 
 @add_printer
@@ -271,11 +278,12 @@ class BoostCircular:
     template_name = 'boost::circular_buffer'
 
     class _iterator:
+
         def __init__(self, first, last, buff, end, size):
             self.item = first  # virtual beginning of the circular buffer
-            self.last = last   # virtual end of the circular buffer (one behind the last element).
-            self.buff = buff   # internal buffer used for storing elements in the circular buffer
-            self.end = end     # internal buffer's end (end of the storage space).
+            self.last = last  # virtual end of the circular buffer (one behind the last element).
+            self.buff = buff  # internal buffer used for storing elements in the circular buffer
+            self.end = end  # internal buffer's end (end of the storage space).
             self.size = size
             self.capa = int(end - buff)
             self.count = 0
@@ -300,17 +308,16 @@ class BoostCircular:
         self.value = value
 
     def children(self):
-        return self._iterator(self.value['m_first'],
-                              self.value['m_last'],
-                              self.value['m_buff'],
-                              self.value['m_end'],
+        return self._iterator(self.value['m_first'], self.value['m_last'],
+                              self.value['m_buff'], self.value['m_end'],
                               self.value['m_size'])
 
     def to_string(self):
         buff = self.value['m_buff']
         end = self.value['m_end']
         size = self.value['m_size']
-        return '%s of length %d/%d' % (self.typename, int(size), int(end - buff))
+        return '%s of length %d/%d' % (self.typename, int(size),
+                                       int(end - buff))
 
     def display_hint(self):
         return 'array'
@@ -438,7 +445,8 @@ class BoostDynamicBitset:
         except gdb.error:
             # bits_per_block can be optimized out by the compiler!
             # Try to guess it from the Block type
-            block_width_type = get_basic_type(self.value.type.template_argument(0))
+            block_width_type = get_basic_type(
+                self.value.type.template_argument(0))
             block_size = block_width_type.sizeof * 8
 
         data_vis = gdb.default_visualizer(self.value['m_bits'])
@@ -447,10 +455,12 @@ class BoostDynamicBitset:
         data = [int(value) for index_str, value in data_vis.children()]
 
         for block_idx, block in enumerate(data):
-            bits_in_block = num_bits % block_size if (block_idx == num_bits // block_size) else block_size
+            bits_in_block = num_bits % block_size if (
+                block_idx == num_bits // block_size) else block_size
             for bit_idx in range(bits_in_block):
                 bit_value = 1 if block & (1 << bit_idx) else 0
-                yield '[{}]'.format(block_idx * block_size + bit_idx), bit_value
+                yield '[{}]'.format(block_idx * block_size +
+                                    bit_idx), bit_value
 
     def display_hint(self):
         return 'array'

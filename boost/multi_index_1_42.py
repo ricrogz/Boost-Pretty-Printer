@@ -6,7 +6,8 @@ from .utils import *
 # Some utility methods.
 #
 
-def _paren_split(s, target_paren = '<'):
+
+def _paren_split(s, target_paren='<'):
     "Split the given string at commas (,) at the first paranthesis sublevel of target_paren, ignoring commas within other paranthesized blocks. This can be used to extract template arguments."
     open_parens = '([{<'
     close_parens = ')]}>'
@@ -16,7 +17,8 @@ def _paren_split(s, target_paren = '<'):
     end_paren['{'] = '}'
     end_paren['<'] = '>'
     if target_paren not in open_parens:
-        message('error: _paren_split: target_paren [' + target_paren + '] must be one of [' + open_parens + ']')
+        message('error: _paren_split: target_paren [' + target_paren +
+                '] must be one of [' + open_parens + ']')
         return None
     paren_stack = []
     res = []
@@ -43,6 +45,7 @@ def _paren_split(s, target_paren = '<'):
                 st = i + 1
     return res
 
+
 def _strip_inheritance_qual(s):
     if s.startswith('public '):
         return s[7:]
@@ -52,13 +55,15 @@ def _strip_inheritance_qual(s):
         return s[10:]
     return s
 
+
 def _boost_multi_index_get_indexes(v):
     "Save the index types of a multi_index_container in v.indexes."
     v.main_args = _paren_split(str(v.basic_type))
     if len(v.main_args) != 3:
         message('error parsing: ' + str(v.basic_type))
         return False
-    arg2_str = str(v.basic_type)[v.main_args[1][0]:v.main_args[1][1]] # the 2nd template arg
+    arg2_str = str(v.basic_type)[v.main_args[1][0]:v.main_args[1]
+                                 [1]]  # the 2nd template arg
     arg2_args = _paren_split(arg2_str)
     if len(arg2_args) == 0:
         message('error parsing arg2 of: ' + str(v.basic_type))
@@ -66,6 +71,7 @@ def _boost_multi_index_get_indexes(v):
     v.indexes = []
     for r in arg2_args:
         v.indexes.append(arg2_str[r[0]:r[1]].split('<')[0].strip())
+
 
 # The size in pointers of the index fields for all index types.
 _boost_multi_index_index_size = {}
@@ -118,6 +124,7 @@ _boost_multi_index_index_size['boost::multi_index::random_access'] = 1
 # parse_and_eval() that can be broken by as little as output formatting changes.
 #
 
+
 @add_printer
 class Boost_Multi_Index:
     "Printer for boost::multi_index_container"
@@ -162,13 +169,13 @@ class Boost_Multi_Index:
         # pick template name
         self.type_name = v.type_name[0:v.main_args[0][0]].strip()[:-1]
         # add 2 args only (omit allocator)
-        self.type_name += ('<'
-                           + v.type_name[v.main_args[0][0]:v.main_args[0][1]].strip()
-                           + ', '
-                           + v.type_name[v.main_args[1][0]:v.main_args[1][1]].strip()
-                           + '>')
+        self.type_name += (
+            '<' + v.type_name[v.main_args[0][0]:v.main_args[0][1]].strip() +
+            ', ' + v.type_name[v.main_args[1][0]:v.main_args[1][1]].strip() +
+            '>')
         # remove bulk
-        self.type_name = ''.join(self.type_name.split('boost::multi_index::detail::'))
+        self.type_name = ''.join(
+            self.type_name.split('boost::multi_index::detail::'))
         self.type_name = ''.join(self.type_name.split('boost::multi_index::'))
         self.type_name = ''.join(self.type_name.split('boost::detail::'))
         self.type_name = ''.join(self.type_name.split(', mpl_::na'))
@@ -192,7 +199,8 @@ class Boost_Multi_Index:
 
         # next, we compute the element size and round it up to the pointer size
         ptr_size = gdb.lookup_type('void').pointer().sizeof
-        self.elem_size = ((self.elem_type.sizeof - 1) / ptr_size + 1) * ptr_size
+        self.elem_size = (
+            (self.elem_type.sizeof - 1) / ptr_size + 1) * ptr_size
         #message('elem_size: ' + str(self.elem_size))
 
         # next, we cast the object into its 2nd subtype which should be header_holder
@@ -202,8 +210,10 @@ class Boost_Multi_Index:
         if header_holder_subtype == None:
             message('error computing 2nd subtype of ' + str(v.basic_type))
             return None
-        if not str(header_holder_subtype).strip().startswith('boost::multi_index::detail::header_holder'):
-            message('2nd subtype of multi_index_container is not header_holder')
+        if not str(header_holder_subtype).strip().startswith(
+                'boost::multi_index::detail::header_holder'):
+            message(
+                '2nd subtype of multi_index_container is not header_holder')
             return None
         head_node = v.cast(header_holder_subtype)['member'].dereference()
         #message('head_node.type.sizeof: ' + str(head_node.type.sizeof))
@@ -214,55 +224,73 @@ class Boost_Multi_Index:
         # to do that, we compute the size of all indexes prior to the current one
         self.index_offset = head_node.type.sizeof
         for i in xrange(v.idx + 1):
-            self.index_offset -= _boost_multi_index_index_size[v.indexes[i]] * ptr_size
+            self.index_offset -= _boost_multi_index_index_size[
+                v.indexes[i]] * ptr_size
         #message('index_offset: ' +  str(self.index_offset))
 
         self.head_index_ptr = intptr(head_node.address) + self.index_offset
         #message('head_index_ptr: ' + hex(self.head_index_ptr))
 
         # offset for hashed_index
-        self.index_offset_for_hash = head_node.type.sizeof - (v.idx + 1) * ptr_size * 2
-        self.head_index_ptr_for_hash = intptr(head_node.address) + self.index_offset_for_hash
+        self.index_offset_for_hash = head_node.type.sizeof - (v.idx +
+                                                              1) * ptr_size * 2
+        self.head_index_ptr_for_hash = intptr(
+            head_node.address) + self.index_offset_for_hash
 
     def empty_cont(self):
         return self.node_count == 0
 
     class empty_iterator:
+
         def __init__(self):
             pass
+
         def __iter__(self):
             return self
+
         def __next__(self):
             raise StopIteration
+
         def next(self):
             return self.__next__()
 
     class na_iterator:
+
         def __init__(self, index_type):
             self.saw_msg = False
             self.index_type = index_type
+
         def __iter__(self):
             return self
+
         def __next__(self):
             if not self.saw_msg:
                 self.saw_msg = True
                 return (self.index_type, 'printer not implemented')
             raise StopIteration
+
         def next(self):
             return self.__next__()
 
     class ordered_iterator:
+
         @staticmethod
         def get_parent_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ')')), 16) & (~intptr(1))
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ')')),
+                16) & (~intptr(1))
 
         @staticmethod
         def get_left_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')),
+                16)
 
         @staticmethod
         def get_right_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 2)')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 2)')),
+                16)
 
         def __init__(self, elem_type, index_offset, first, last):
             self.elem_type = elem_type
@@ -302,20 +330,25 @@ class Boost_Multi_Index:
             self.count = self.count + 1
             val_ptr = Boost_Multi_Index.get_val_ptr(crt, self.index_offset)
             return ('[%s]' % hex(int(val_ptr)),
-                    str(parse_and_eval('*(' + str(self.elem_type) + '*)'
-                                       + str(val_ptr))))
+                    str(
+                        parse_and_eval('*(' + str(self.elem_type) + '*)' +
+                                       str(val_ptr))))
 
         def next(self):
             return self.__next__()
 
     class hashed_iterator:
+
         @staticmethod
         def get_prev_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ')')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ')')), 16)
 
         @staticmethod
         def get_next_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')),
+                16)
 
         def __init__(self, elem_type, index_offset, begin, end):
             self.elem_type = elem_type
@@ -342,20 +375,25 @@ class Boost_Multi_Index:
             self.count = self.count + 1
             val_ptr = Boost_Multi_Index.get_val_ptr(crt, self.index_offset)
             return ('[%s]' % hex(int(val_ptr)),
-                    str(parse_and_eval('*(' + str(self.elem_type) + '*)'
-                                       + str(val_ptr))))
+                    str(
+                        parse_and_eval('*(' + str(self.elem_type) + '*)' +
+                                       str(val_ptr))))
 
         def next(self):
             return self.__next__()
 
     class sequenced_iterator:
+
         @staticmethod
         def get_prev_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ')')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ')')), 16)
 
         @staticmethod
         def get_next_ptr(node_ptr):
-            return intptr(str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')), 16)
+            return intptr(
+                str(parse_and_eval('*((void**)' + str(node_ptr) + ' + 1)')),
+                16)
 
         def __init__(self, elem_type, index_offset, begin, end):
             self.elem_type = elem_type
@@ -376,8 +414,9 @@ class Boost_Multi_Index:
             self.count = self.count + 1
             val_ptr = Boost_Multi_Index.get_val_ptr(crt, self.index_offset)
             return ('[%s]' % hex(int(val_ptr)),
-                    str(parse_and_eval('*(' + str(self.elem_type) + '*)'
-                                       + str(val_ptr))))
+                    str(
+                        parse_and_eval('*(' + str(self.elem_type) + '*)' +
+                                       str(val_ptr))))
 
         def next(self):
             return self.__next__()
@@ -385,24 +424,22 @@ class Boost_Multi_Index:
     def children(self):
         if self.empty_cont():
             return self.empty_iterator()
-        if (self.index_type == 'boost::multi_index::ordered_unique'
-            or self.index_type == 'boost::multi_index::ordered_non_unique'):
+        if (self.index_type == 'boost::multi_index::ordered_unique' or
+                self.index_type == 'boost::multi_index::ordered_non_unique'):
             return self.ordered_iterator(
-                self.elem_type,
-                self.index_offset,
+                self.elem_type, self.index_offset,
                 self.ordered_iterator.get_left_ptr(self.head_index_ptr),
                 self.ordered_iterator.get_right_ptr(self.head_index_ptr))
         elif (self.index_type == 'boost::multi_index::hashed_unique'
-            or self.index_type == 'boost::multi_index::hashed_non_unique'):
+              or self.index_type == 'boost::multi_index::hashed_non_unique'):
             return self.hashed_iterator(
-                self.elem_type,
-                self.index_offset_for_hash,
-                self.hashed_iterator.get_prev_ptr(self.head_index_ptr_for_hash),
+                self.elem_type, self.index_offset_for_hash,
+                self.hashed_iterator.get_prev_ptr(
+                    self.head_index_ptr_for_hash),
                 self.head_index_ptr_for_hash)
         elif self.index_type == 'boost::multi_index::sequenced':
             return self.sequenced_iterator(
-                self.elem_type,
-                self.index_offset,
+                self.elem_type, self.index_offset,
                 self.sequenced_iterator.get_next_ptr(self.head_index_ptr),
                 self.head_index_ptr)
         return self.na_iterator(self.index_type)

@@ -1,11 +1,12 @@
 from __future__ import print_function
 
-import gdb
-import gdb.types
-import gdb.printing
-from gdb import lookup_type
-import sys
 import collections
+import sys
+
+import gdb
+import gdb.printing
+import gdb.types
+from gdb import lookup_type
 
 from .detect_version import detect_boost_version
 
@@ -26,6 +27,7 @@ if have_python_3:
 elif have_python_2:
     intptr = long
 
+
 #
 # Replacement for switch statement.
 #
@@ -34,6 +36,7 @@ class switch(object):
     Replacement for switch statement.
     http://code.activestate.com/recipes/410692/
     """
+
     def __init__(self, value):
         self.value = value
         self.fall = False
@@ -53,6 +56,7 @@ class switch(object):
         else:
             return False
 
+
 #
 # Rudimentary logging facility.
 #
@@ -62,15 +66,19 @@ def message(s):
     """
     print('*** boost printers: ' + s, file=sys.stderr)
 
+
 #
 # Print long error message only once.
 #
 class _Long_Message(object):
     counts = dict()
+
+
 def long_message(tag, msg):
     if tag not in _Long_Message.counts:
         _Long_Message.counts[tag] = 1
         message(msg)
+
 
 #
 # get_basic_type(): imported from gdb.types, or workaround from libstdcxx
@@ -86,6 +94,7 @@ except ImportError:
         # Get the unqualified type, stripped of typedefs.
         type = type.unqualified().strip_typedefs()
         return type
+
 
 #
 # parse_and_eval(): imported from gdb, or workaround
@@ -134,15 +143,19 @@ def template_name(t):
     """
     assert isinstance(t, gdb.Type)
     bt = get_basic_type(t)
-    if bt.code in [gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION, gdb.TYPE_CODE_ENUM]:
+    if bt.code in [
+            gdb.TYPE_CODE_STRUCT, gdb.TYPE_CODE_UNION, gdb.TYPE_CODE_ENUM
+    ]:
         return str(bt).split('<')[0]
     else:
         return ''
 
 
 class _aux_save_value_as_variable(gdb.Function):
+
     def __init__(self, v):
-        super(_aux_save_value_as_variable, self).__init__('_aux_save_value_as_variable')
+        super(_aux_save_value_as_variable,
+              self).__init__('_aux_save_value_as_variable')
         self.value = v
 
     def invoke(self):
@@ -156,7 +169,8 @@ def save_value_as_variable(v, s):
     assert isinstance(v, gdb.Value)
     assert isinstance(s, str)
     _aux_save_value_as_variable(v)
-    gdb.execute('set var ' + s + ' = $_aux_save_value_as_variable()', False, True)
+    gdb.execute('set var ' + s + ' = $_aux_save_value_as_variable()', False,
+                True)
 
 
 def to_eval(val, var_name=None):
@@ -198,11 +212,14 @@ def call_object_method(v, f, *args):
     i = 0
     args_to_eval = list()
     for arg in args:
-        assert isinstance(arg, gdb.Value), 'extra argument %s not a gdb.Value' % i + 1
-        args_to_eval.append(to_eval(arg, '$_call_object_method_arg_%s' % i + 1))
+        assert isinstance(
+            arg, gdb.Value), 'extra argument %s not a gdb.Value' % i + 1
+        args_to_eval.append(to_eval(arg,
+                                    '$_call_object_method_arg_%s' % i + 1))
     try:
-        return parse_and_eval(to_eval(v, '$_call_object_method_arg_0') + '.' + f
-                              + '(' + ', '.join(args_to_eval) + ')')
+        return parse_and_eval(
+            to_eval(v, '$_call_object_method_arg_0') + '.' + f + '(' +
+            ', '.join(args_to_eval) + ')')
     except:
         message('call_object_method: call failed to: ' + key)
         long_message(
@@ -274,7 +291,8 @@ def call_static_method(t, f, *args):
     i = 0
     args_to_eval = list()
     for arg in args:
-        assert isinstance(arg, gdb.Value), 'extra argument %s not a gdb.Value' % i
+        assert isinstance(arg,
+                          gdb.Value), 'extra argument %s not a gdb.Value' % i
         args_to_eval.append(to_eval(arg, '$_call_static_method_arg_%s' % i))
     # eval in gdb
     cmd = str(t) + '::' + f + '(' + ', '.join(args_to_eval) + ')'
@@ -285,8 +303,8 @@ def call_static_method(t, f, *args):
         long_message(
             'call_static_method',
             '\n\tto bypass call with a python function <f>, use:\n' +
-            '\t  py boost.static_method[("' + str(t.strip_typedefs())
-            + '", "' + f + '")] = <f>')
+            '\t  py boost.static_method[("' + str(t.strip_typedefs()) +
+            '", "' + f + '")] = <f>')
         raise gdb.error
 
 
@@ -349,13 +367,15 @@ def get_inner_type(t, s):
         message('get_inner_type: failed to find type: ' + inner_type_name)
         long_message(
             'get_inner_type',
-            '\n\tBy default, gcc eliminates unused typedefs from object files, which can\n' +
-            '\tcause gdb not to find them at runtime. To elimiate this behaviour, use the\n' +
-            '\tflag `-fno-eliminate-unused-debug-types`. NOTE: clang (3.5) seems to be\n' +
-            '\tsilently ignoring this flag.\n' +
-            '\tAlternatively, to bypass this failure, add the result manually with:\n' +
-            '\t  py boost.inner_type[("' +
-            str(get_basic_type(t)) + '", "' + s + '")] = <type>')
+            '\n\tBy default, gcc eliminates unused typedefs from object files, which can\n'
+            +
+            '\tcause gdb not to find them at runtime. To elimiate this behaviour, use the\n'
+            +
+            '\tflag `-fno-eliminate-unused-debug-types`. NOTE: clang (3.5) seems to be\n'
+            + '\tsilently ignoring this flag.\n' +
+            '\tAlternatively, to bypass this failure, add the result manually with:\n'
+            + '\t  py boost.inner_type[("' + str(get_basic_type(t)) + '", "' +
+            s + '")] = <type>')
         raise
 
 
@@ -403,11 +423,13 @@ def get_raw_ptr(p):
     try:
         return parse_and_eval(p_str + '.operator->()')
     except gdb.error:
-        message('get_raw_ptr: call to operator->() failed on type: ' + str(p.type.strip_typedefs()))
+        message('get_raw_ptr: call to operator->() failed on type: ' +
+                str(p.type.strip_typedefs()))
         long_message(
             'get_raw_ptr',
             '\n\tto bypass this with python function <f>, add:\n' +
-            '\t  py boost.raw_ptr["' + str(p.type.strip_typedefs()) + '"] = <f>')
+            '\t  py boost.raw_ptr["' + str(p.type.strip_typedefs()) +
+            '"] = <f>')
         raise gdb.error
 
 
@@ -458,10 +480,10 @@ def is_null(p):
     if f:
         return f(p)
 
-    message('is_null: cannot run is_null() on type: ' + str(p.type.strip_typedefs()))
+    message('is_null: cannot run is_null() on type: ' +
+            str(p.type.strip_typedefs()))
     long_message(
-        'is_null',
-        '\n\tto bypass this with python function <f>, add:\n' +
+        'is_null', '\n\tto bypass this with python function <f>, add:\n' +
         '\t  py boost.null_dict["' + str(p.type.strip_typedefs()) + '"] = <f>')
     raise gdb.error
 
@@ -476,19 +498,24 @@ def add_to_dict(d, *keys):
         for k in keys:
             d[k] = obj
         return None
+
     return inner_decorator
+
 
 #
 # Convenience function for printing specific elements in containers.
 #
 class at_func(gdb.Function):
+
     def __init__(self):
         super(at_func, self).__init__('at')
+
     def invoke(self, cont, idx=0):
         assert isinstance(cont, gdb.Value)
         p = gdb.default_visualizer(cont)
         assert p, 'no printer for type [' + str(cont.type) + ']'
-        assert hasattr(p, 'children'), 'printer for type [' + str(cont.type) + '] has no children() function'
+        assert hasattr(p, 'children'), 'printer for type [' + str(
+            cont.type) + '] has no children() function'
         it = iter(p.children())
         i = idx
         while i > 0:
@@ -515,6 +542,7 @@ def reinterpret_cast(value, target_type):
 
 class GDB_Value_Wrapper(gdb.Value):
     """Wrapper class for gdb.Value"""
+
     def __init__(self, value):
         # In Python 3 simply deriving from gdb.Value will generate a __dict__ attribute.
         # In Python 2 we add a __dict__ attribute explicitly.
@@ -534,7 +562,9 @@ class Printer_Gen(object):
     """
     Top-level printer generator.
     """
+
     class SubPrinter_Gen(object):
+
         def __init__(self, Printer, tn=str()):
             self.Printer = Printer
             # set printer_name
@@ -552,9 +582,11 @@ class Printer_Gen(object):
         def __call__(self, v):
             if not self.enabled:
                 return None
-            if hasattr(self.Printer, 'supports') and not self.Printer.supports(v):
+            if hasattr(self.Printer,
+                       'supports') and not self.Printer.supports(v):
                 return None
-            if hasattr(self.Printer, 'transform') and callable(self.Printer.transform):
+            if hasattr(self.Printer, 'transform') and callable(
+                    self.Printer.transform):
                 tv = self.Printer.transform(v)
                 if type(tv) == gdb.Value:
                     p = gdb.default_visualizer(tv)
@@ -572,8 +604,10 @@ class Printer_Gen(object):
         self.no_template_name_list = list()
 
     def add(self, Printer, tn=str()):
-        if not hasattr(Printer, 'supports') and not hasattr(Printer, 'template_name') and tn == '':
-            message('cannot import printer [' + Printer.printer_name + ']: neither supports() nor template_name is defined')
+        if not hasattr(Printer, 'supports') and not hasattr(
+                Printer, 'template_name') and tn == '':
+            message('cannot import printer [' + Printer.printer_name +
+                    ']: neither supports() nor template_name is defined')
             return
         # get list of template names
         if tn != '':
@@ -585,7 +619,9 @@ class Printer_Gen(object):
         elif type(Printer.template_name) == list:
             name_list = Printer.template_name
         else:
-            message('cannot import printer [' + Printer.printer_name + ']: template_name has type=' + str(type(Printer.template_name)))
+            message('cannot import printer [' + Printer.printer_name +
+                    ']: template_name has type=' +
+                    str(type(Printer.template_name)))
             return
         # create new printer
         p = Printer_Gen.SubPrinter_Gen(Printer, tn)
@@ -600,7 +636,8 @@ class Printer_Gen(object):
 
     def __call__(self, value):
         v = GDB_Value_Wrapper(value)
-        subprinter_generators = self.template_name_dict.get(v.template_name, self.no_template_name_list)
+        subprinter_generators = self.template_name_dict.get(
+            v.template_name, self.no_template_name_list)
         for subprinter_gen in subprinter_generators:
             printer = subprinter_gen(v)
             if printer is not None:
@@ -635,20 +672,28 @@ def register_printers(obj=None, boost_version=None):
         message('Detecting boost_version... ')
         boost_version = detect_boost_version()
         message('Detected boost version: {}.{}.{}'.format(*boost_version))
-    supported_printers = [printer for printer in boost_printer_list
-                          if printer.min_supported_version <= boost_version <= printer.max_supported_version]
+    supported_printers = [
+        printer for printer in boost_printer_list
+        if printer.min_supported_version <= boost_version <=
+        printer.max_supported_version
+    ]
     if supported_printers:
         boost_printer_gen = Printer_Gen('boost')
         for printer in supported_printers:
             boost_printer_gen.add(printer)
-        gdb.printing.register_pretty_printer(obj, boost_printer_gen, replace=True)
+        gdb.printing.register_pretty_printer(obj,
+                                             boost_printer_gen,
+                                             replace=True)
     else:
-        message('No boost printers are available for boost version {}.{}.{}!'.format(*boost_version))
+        message('No boost printers are available for boost version {}.{}.{}!'.
+                format(*boost_version))
 
     trivial_printer_gen = Printer_Gen('trivial')
     for printer in trivial_printer_list:
         trivial_printer_gen.add(printer)
-    gdb.printing.register_pretty_printer(obj, trivial_printer_gen, replace=True)
+    gdb.printing.register_pretty_printer(obj,
+                                         trivial_printer_gen,
+                                         replace=True)
 
     for tp in type_printer_list:
         gdb.types.register_type_printer(obj, tp)
@@ -663,6 +708,7 @@ def add_printer(p):
 
 
 class _cant_add_printer:
+
     def __init__(self, msg):
         self.msg = msg
 
@@ -690,11 +736,13 @@ def add_type_recognizer(r):
 
 
 class _cant_add_type_recognizer:
+
     def __init__(self, msg):
         self.msg = msg
 
     def __call__(self, p):
-        message('type recognizer [' + p.printer_name + '] not supported: ' + self.msg)
+        message('type recognizer [' + p.printer_name + '] not supported: ' +
+                self.msg)
         return p
 
 
@@ -731,6 +779,7 @@ def add_trivial_printer(tn, f):
 
         def to_string(self):
             return str(self.v)
+
     trivial_printer_list.append(_Printer)
 
 
@@ -759,9 +808,11 @@ def add_trivial_type_printer(tn, f, **kwargs):
             if _tn != self.name:
                 return None
             return self.transform(t)
+
     if 'obj' not in kwargs:
         kwargs['obj'] = None
-    gdb.types.register_type_printer(kwargs['obj'], Type_Printer_Gen(_Type_Recognizer))
+    gdb.types.register_type_printer(kwargs['obj'],
+                                    Type_Printer_Gen(_Type_Recognizer))
 
 
 #
